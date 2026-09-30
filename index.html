@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asistente de usabilidad: heurísticas de Nielsen</title>
+<style>
+:root{--bg:#f6f7fb;--panel:#fff;--ink:#1f2433;--muted:#5d6479;--line:#dfe2ec;--accent:#c8402f;--teal:#1f6f66;--warn-bg:#fff3e6;--warn-line:#e9b27a;--bot:#eef0f7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141721;--panel:#1c2030;--ink:#eceef6;--muted:#a3a9bd;--line:#333a52;--accent:#e5624f;--teal:#5cc0b3;--warn-bg:#3a2b1c;--warn-line:#8a5f2e;--bot:#262b40}}
+:root[data-theme="dark"]{--bg:#141721;--panel:#1c2030;--ink:#eceef6;--muted:#a3a9bd;--line:#333a52;--accent:#e5624f;--teal:#5cc0b3;--warn-bg:#3a2b1c;--warn-line:#8a5f2e;--bot:#262b40}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:400 16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.app{height:100%;max-width:860px;margin:0 auto;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 18px;border-bottom:1px solid var(--line)}
+header h1{font-size:1.05rem;margin:0;font-weight:700}
+.ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:.9rem;white-space:nowrap}
+.ghost:hover{border-color:var(--accent)}
+.head-actions{display:flex;gap:8px}
+main{flex:1;overflow-y:auto;padding:20px 18px}
+.welcome{max-width:680px;margin:4vh auto 0}
+.welcome h2{font-size:1.8rem;line-height:1.2;margin:0 0 6px}
+.welcome p.sub{margin:0 0 20px;color:var(--muted)}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.group h3{margin:0 0 8px;font-size:.95rem;color:var(--teal)}
+.chips{display:flex;flex-direction:column;gap:8px}
+.chip{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.95rem}
+.chip:hover{border-color:var(--accent);background:var(--bot)}
+.msg{display:flex;margin:0 0 14px}.msg.me{justify-content:flex-end}
+.bubble{max-width:86%;padding:10px 14px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.bot .bubble{background:var(--bot);border-bottom-left-radius:4px}
+.me .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+footer{border-top:1px solid var(--line);padding:10px 18px 14px;background:var(--panel)}
+.quick{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+.quick .chip{white-space:nowrap;border-radius:999px;padding:6px 12px;font-size:.88rem;flex:none}
+.notice{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;padding:8px 12px;font-size:.88rem;margin-bottom:10px}
+.row{display:flex;gap:8px}
+.row input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:11px 16px;font:inherit}
+.send{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:0 20px;font-weight:700}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:520px){.bubble{max-width:94%}.welcome h2{font-size:1.5rem}.ghost{padding:6px 10px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Asistente de usabilidad</h1>
+    <div class="head-actions">
+      <button class="ghost" id="helpBtn" type="button">¿Qué puedo preguntar?</button>
+      <button class="ghost" id="resetBtn" type="button">Nuevo chat</button>
+    </div>
+  </header>
+  <main id="chat" aria-live="polite"></main>
+  <footer>
+    <div class="quick" id="quick" hidden></div>
+    <div class="notice" role="note">
+      <span aria-hidden="true">⚠️</span>
+      <span><strong>No es una IA generativa y puede equivocarse.</strong> Responde con una base de conocimiento fija y a veces no entenderá tu pregunta. Contrasta con nngroup.com.</span>
+    </div>
+    <form class="row" id="form" onsubmit="return false">
+      <label class="sr" for="input">Escribe tu mensaje</label>
+      <input id="input" type="text" autocomplete="off" placeholder="Pregunta algo o describe un problema de una interfaz…">
+      <button class="send" type="submit">Enviar</button>
+    </form>
+  </footer>
+</div>
+<script>
+/* ===== BASE DE CONOCIMIENTO ===== (k = conceptos, s = síntomas; todo en minúsculas y sin acentos) */
+var H=[
+{n:1,name:"Visibilidad del estado del sistema",def:"El sistema debe informar al usuario, en todo momento y con rapidez, qué está pasando: si está cargando, si algo se guardó, en qué paso va.",ok:"Una barra de progreso al subir un archivo, o el aviso «Guardado» al editar un documento.",mal:"Pulsas «Enviar», no pasa nada visible y no sabes si funcionó, así que vuelves a pulsar.",tip:"Da retroalimentación en menos de un segundo y muestra el progreso en los procesos largos.",k:["visibilidad","estado del sistema","retroalimentacion","feedback"],s:["no pasa nada","no se si","cargando","progreso","espera","guardado","subiendo","enviando","no responde","sin aviso","se congela","lento","en que paso"]},
+{n:2,name:"Concordancia entre el sistema y el mundo real",def:"Usa el lenguaje, los conceptos y las convenciones que el usuario ya conoce, no términos técnicos internos. La información debe seguir un orden natural y lógico.",ok:"El ícono de papelera para eliminar: reutiliza la metáfora de la oficina.",mal:"Mostrar «Error 0x80070005» en vez de «No tienes permiso para abrir este archivo».",tip:"Usa el vocabulario de tus usuarios (compruébalo con ellos), no el del equipo técnico.",k:["mundo real","concordancia","metafora","lenguaje del usuario"],s:["jerga","termino tecnico","terminos tecnicos","no entiendo","lenguaje","vocabulario","icono confuso","palabra rara","que significa"]},
+{n:3,name:"Control y libertad del usuario",def:"Los usuarios se equivocan y necesitan una «salida de emergencia» clara: deshacer, rehacer, cancelar o volver atrás sin pasar por procesos largos.",ok:"Ctrl+Z, o «Deshacer envío» en el correo.",mal:"Un asistente de compra que no deja volver al paso anterior sin perder todo lo capturado.",tip:"Ofrece cancelar en procesos largos y una forma visible de salir de cualquier pantalla.",k:["control y libertad","libertad","deshacer","rehacer"],s:["cancelar","volver","atras","salir","atrapado","no puedo salir","me equivoque","sin salida","cerrar"]},
+{n:4,name:"Consistencia y estándares",def:"Las mismas palabras, íconos y acciones deben significar lo mismo en todo el sistema, y seguir las convenciones de la plataforma (ley de Jakob).",ok:"El botón principal siempre del mismo color y en el mismo lugar.",mal:"«Guardar» en una pantalla, «Aceptar» en otra y «Listo» en una tercera para lo mismo.",tip:"Crea una guía de estilo o sistema de diseño y respétala en todo el producto.",k:["consistencia","consistente","estandar","estandares","sistema de diseno","guia de estilo"],s:["inconsistente","diferente","distinto","cada pantalla","no se parece","cambia de lugar","convencion","mismo boton","colores distintos","otra pantalla"]},
+{n:5,name:"Prevención de errores",def:"Mejor que un buen mensaje de error es un diseño que evita que el error ocurra: restringir opciones, confirmar acciones destructivas y dar valores por defecto sensatos.",ok:"Un selector de fecha en lugar de un campo libre; pedir confirmación antes de eliminar.",mal:"Un botón «Eliminar cuenta» pegado a «Guardar» y sin confirmación.",tip:"Distingue los errores por descuido (slips) de los errores por confusión (mistakes).",k:["prevencion","prevenir","evitar errores","slip"],s:["sin querer","por error","sin confirmacion","confirmar","campo libre","por accidente","validar","validacion","pegado al boton","borra sin","elimina sin"]},
+{n:6,name:"Reconocer en lugar de recordar",def:"Minimiza la carga de memoria: haz visibles los objetos, acciones y opciones para que el usuario las reconozca sin tener que recordarlas.",ok:"Menús con las opciones a la vista, historial de búsquedas y sugerencias iniciales en un chat de IA.",mal:"Un cuadro de texto vacío que exige saber qué comandos existen.",tip:"Recordar cuesta más que reconocer: muestra, no obligues a memorizar.",k:["reconocer","reconocimiento","recall","pantalla en blanco","campo vacio"],s:["memorizar","recordar","comandos","que puedo pedir","que puedo hacer","opciones ocultas","carga de memoria","cuadro de texto vacio","vacio"]},
+{n:7,name:"Flexibilidad y eficiencia de uso",def:"Ofrece atajos y aceleradores para expertos que no estorben a los novatos, y permite personalizar o automatizar las acciones frecuentes.",ok:"Atajos de teclado, gestos, plantillas y «comprar con un clic».",mal:"Obligar a un experto a pasar por 6 pantallas para una tarea que hace 50 veces al día.",tip:"Piensa en dos usuarios: el que empieza hoy y el que lleva años. Sirve a ambos.",k:["flexibilidad","eficiencia","aceleradores"],s:["atajo","atajos","muy lento","experto","novato","repetitivo","muchos pasos","muchos clics","personalizar","frecuente","automatizar"]},
+{n:8,name:"Diseño estético y minimalista",def:"Cada elemento extra compite con la información importante. Muestra solo lo relevante y da prioridad con jerarquía visual.",ok:"El inicio de un buscador: una sola acción principal, muy clara.",mal:"Una pantalla con 15 banners, 4 menús y texto por todas partes.",tip:"Minimalista no significa «bonito»: significa quitar lo que no aporta.",k:["minimalista","minimalismo","estetico","estetica"],s:["saturado","cargado","mucha informacion","muchos colores","desordenado","ruido visual","abrumador","demasiado texto","no se donde mirar","recargado","banners"]},
+{n:9,name:"Ayudar a reconocer, diagnosticar y recuperarse de errores",def:"Los mensajes de error deben usar lenguaje claro (sin códigos), indicar con precisión el problema y sugerir una solución constructiva.",ok:"«La contraseña necesita al menos 8 caracteres; añade 2 más», junto al campo.",mal:"«Error. Algo salió mal.» sin decir qué pasó ni cómo arreglarlo.",tip:"Un buen mensaje dice qué pasó, por qué y cómo resolverlo, sin culpar al usuario.",k:["diagnosticar","recuperarse","mensajes de error","mensaje de error","recuperacion"],s:["error generico","algo salio mal","no dice que paso","como arreglar","formulario rechazado","error 404","error 500","sin explicacion","codigo de error"]},
+{n:10,name:"Ayuda y documentación",def:"Lo ideal es que el sistema se use sin ayuda, pero si hace falta, debe ser fácil de buscar, centrada en la tarea, breve y con pasos concretos.",ok:"Tooltips, ayuda contextual y un buscador en el centro de ayuda.",mal:"Un manual en PDF de 80 páginas y sin buscador.",tip:"Escribe la ayuda pensando en tareas («cómo cambiar mi contraseña»), no en funciones.",k:["documentacion","centro de ayuda"],s:["manual","tutorial","onboarding","faq","soporte","no encuentro como","guia","sin ayuda"]}
+];
+var D=[
+{name:"Ley de Fitts",k:["fitts"],rel:"Explícame la heurística 7",txt:"Ley de Fitts: el tiempo para alcanzar un objetivo depende de su distancia y de su tamaño. Los botones importantes deben ser grandes y estar cerca de donde está el cursor o el pulgar. Los bordes y esquinas de la pantalla son fáciles de alcanzar porque el cursor no se pasa de ahí."},
+{name:"Ley de Hick",k:["hick"],rel:"Explícame la heurística 8",txt:"Ley de Hick: el tiempo para decidir aumenta con el número de opciones. Reduce las opciones, agrúpalas y prioriza las más comunes. Relacionada con la heurística 8 (minimalismo)."},
+{name:"Ley de Jakob",k:["jakob"],rel:"Explícame la heurística 4",txt:"Ley de Jakob: los usuarios pasan la mayor parte del tiempo en otros sitios, así que esperan que el tuyo funcione igual. Innovar en lo básico (el carrito, el menú, el login) suele confundir. Se relaciona con la heurística 4."},
+{name:"Ley de Miller",k:["miller","chunking","7 mas menos 2"],rel:"Explícame la heurística 6",txt:"Ley de Miller: la memoria de trabajo retiene unos 7 ± 2 elementos a la vez. Agrupa la información en bloques (chunking), como en un número de teléfono. Se relaciona con la heurística 6."},
+{name:"Principios de Gestalt",k:["gestalt","proximidad","similitud"],rel:"Explícame la heurística 8",txt:"Principios de Gestalt: cómo percibimos grupos y formas.\n• Proximidad: lo cercano se percibe como grupo.\n• Similitud: lo parecido se percibe como relacionado.\n• Cierre: completamos formas incompletas.\n• Continuidad: seguimos líneas y curvas.\n• Figura-fondo: separamos lo importante del fondo.\n• Región común: lo que está dentro de un mismo recuadro va junto."},
+{name:"Affordance y signifiers",k:["affordance","signifier","significante"],rel:"Explícame la heurística 6",txt:"Affordance (Norman): lo que un objeto permite hacer. Un signifier es la señal que lo comunica: un botón con relieve o sombra sugiere que se puede pulsar. Si algo se puede tocar pero no lo parece, el usuario no lo descubre."},
+{name:"Accesibilidad",k:["accesibilidad","accesible","contraste","wcag","daltonismo","daltonico"],rel:"Explícame la heurística 2",txt:"Accesibilidad básica (WCAG):\n• Contraste mínimo de 4.5:1 para texto normal.\n• No depender solo del color para dar información.\n• Texto alternativo en imágenes.\n• Todo debe poder usarse con teclado.\n• Áreas táctiles de al menos 44 px."},
+{name:"Jerarquía visual",k:["jerarquia"],rel:"Explícame la heurística 8",txt:"Jerarquía visual: guía la mirada hacia lo importante con tamaño, color, contraste, espacio en blanco y alineación. Si todo destaca, nada destaca."},
+{name:"Evaluación heurística",k:["evaluacion heuristica","evaluar una interfaz","como evaluo","evaluador"],rel:"Lista las 10 heurísticas",txt:"Cómo hacer una evaluación heurística:\n1. Elige 3 a 5 evaluadores (idealmente expertos).\n2. Cada uno revisa la interfaz por separado con las 10 heurísticas.\n3. Anota cada problema, dónde está y qué heurística viola.\n4. Asigna severidad de 0 a 4.\n5. Reúnan los hallazgos y prioricen las correcciones."},
+{name:"Severidad",k:["severidad","gravedad"],rel:"Explícame la evaluación heurística",txt:"Escala de severidad de Nielsen:\n0 = no es un problema\n1 = cosmético\n2 = menor\n3 = mayor (prioridad alta)\n4 = catastrófico (hay que arreglarlo ya)\nSe decide por frecuencia, impacto y persistencia del problema."},
+{name:"Pruebas de usabilidad",k:["prueba de usabilidad","pruebas de usabilidad","con usuarios","5 usuarios","piensa en voz alta","think aloud"],rel:"Explícame la evaluación heurística",txt:"Pruebas de usabilidad: observas a usuarios reales haciendo tareas concretas mientras piensan en voz alta. Según Nielsen, con unos 5 usuarios se detecta buena parte de los problemas (cerca del 85 %); es mejor hacer varias rondas pequeñas que una grande."},
+{name:"Usabilidad",k:["usabilidad","que es usabilidad"],rel:"Lista las 10 heurísticas",txt:"Usabilidad (Nielsen): qué tan fácil es usar una interfaz. Se mide con 5 componentes: facilidad de aprendizaje, eficiencia, memorabilidad, errores y satisfacción."},
+{name:"Origen de las heurísticas",k:["quien creo","quien es nielsen","quien propuso","quien hizo","autor","molich"],rel:"Lista las 10 heurísticas",txt:"Las heurísticas las propuso Jakob Nielsen junto con Rolf Molich en 1990, y Nielsen las refinó en 1994. Hoy las difunde el Nielsen Norman Group (nngroup.com)."},
+{name:"Chat de IA: pantalla en blanco",k:["chat de ia","chatbot","sugerencia inicial","aviso de ia","cuadro de texto"],rel:"Explícame la heurística 6",txt:"Chat de IA y la pantalla en blanco: un cuadro vacío no dice qué se puede pedir.\n• Heurística 6: muestra lo posible en vez de obligar a recordarlo.\n• Una sugerencia inicial funciona como un menú mínimo.\n• El aviso de que es IA y puede equivocarse no debería quedar al pie, fuera del foco: hazlo visible."}
+];
+var S=[
+{q:"Al subir un video de 2 GB, la app no muestra nada durante 3 minutos.",a:1,why:"El sistema no informa el estado del proceso."},
+{q:"Un menú dice «Instanciar recurso» en lugar de «Crear».",a:2,why:"Usa lenguaje técnico en vez del lenguaje del usuario."},
+{q:"Un asistente de compra no permite volver al paso anterior.",a:3,why:"Falta una salida clara para corregir."},
+{q:"El botón se llama «Guardar» en una pantalla, «Aceptar» en otra y «Listo» en otra.",a:4,why:"Lo mismo se nombra distinto en cada pantalla."},
+{q:"El botón «Eliminar» está pegado a «Guardar» y borra sin pedir confirmación.",a:5,why:"El diseño facilita el error en vez de prevenirlo."},
+{q:"Un campo de comandos vacío que no dice qué se puede escribir.",a:6,why:"Obliga a recordar en vez de mostrar las opciones."},
+{q:"Un experto debe pasar por 6 pantallas para una tarea diaria y no hay atajos.",a:7,why:"No hay aceleradores para el usuario frecuente."},
+{q:"La pantalla tiene 6 banners, 3 menús y texto por todas partes.",a:8,why:"El exceso de elementos compite con lo importante."},
+{q:"La app muestra «Error 500» sin explicar qué hacer.",a:9,alt:[2],why:"El mensaje no explica el problema ni propone una solución."},
+{q:"Una función compleja no tiene ayuda, tutorial ni manual.",a:10,why:"Falta documentación centrada en la tarea."}
+];
+var DEFQ=["Lista las 10 heurísticas","Explícame la heurística 6","Ponme a prueba","Ley de Fitts","¿Cómo hago una evaluación heurística?","Mi app no muestra el progreso al subir un archivo"];
+var MENU=[
+{t:"Heurísticas de Nielsen",i:["Lista las 10 heurísticas","Explícame la heurística 6"]},
+{t:"Diagnosticar un problema",i:["El usuario borra un archivo sin querer y no puede deshacerlo","Mi app muestra «Algo salió mal» sin más detalles"]},
+{t:"Diseño de interfaces",i:["Ley de Fitts","Principios de Gestalt","Accesibilidad"]},
+{t:"Practicar y evaluar",i:["Ponme a prueba","¿Cómo hago una evaluación heurística?"]}
+];
+
+/* ===== MOTOR ===== */
+var last=null,quiz=null;
+function norm(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9#]+/g," ").replace(/\s+/g," ").trim();}
+function hits(t,l){return (l||[]).filter(function(k){return t.indexOf(k)>-1;});}
+function rank(t){
+  return H.concat(D).map(function(it){var a=hits(t,it.k),b=hits(t,it.s);return {it:it,a:a,b:b,sc:a.length*3+b.length*2};})
+    .filter(function(r){return r.sc>0;}).sort(function(x,y){return y.sc-x.sc;});
+}
+function hFollow(h){return ["¿Cómo se viola?","¿Cómo la aplico?","Siguiente heurística","Ponme a prueba"];}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),x=a[i];a[i]=a[j];a[j]=x;}return a;}
+function heur(h,mode){
+  last=h;var T="Heurística "+h.n+": "+h.name+"\n\n";
+  if(mode==="bad")return {text:T+"Cómo se viola:\n"+h.mal+"\n\nCómo evitarlo: "+h.tip,follow:hFollow(h)};
+  if(mode==="how")return {text:T+"Cómo aplicarla:\n"+h.tip+"\n\nEjemplo que la cumple: "+h.ok,follow:hFollow(h)};
+  if(mode==="ex")return {text:T+"✔ Cumple: "+h.ok+"\n✘ Viola: "+h.mal,follow:hFollow(h)};
+  return {text:T+h.def+"\n\n✔ Ejemplo: "+h.ok,follow:hFollow(h)};
+}
+function askQ(){var s=S[quiz.order[quiz.i]];return "Pregunta "+(quiz.i+1)+" de 5:\n\n"+s.q+"\n\n¿Qué heurística se viola? Responde con un número del 1 al 10.";}
+var NUMS=["1","2","3","4","5","6","7","8","9","10","Salir"];
+function grade(t){
+  if(/salir|terminar|cancelar|basta/.test(t)){var c=quiz.score;quiz=null;return {text:"Quiz terminado con "+c+" acierto(s). Escribe «ponme a prueba» cuando quieras repetirlo.",follow:DEFQ};}
+  var m=t.match(/\b(\d{1,2})\b/);
+  if(!m||+m[1]<1||+m[1]>10)return {text:"Responde con un número del 1 al 10, o escribe «salir».",follow:NUMS};
+  var s=S[quiz.order[quiz.i]],n=+m[1],ok=n===s.a||(s.alt&&s.alt.indexOf(n)>-1);
+  if(ok)quiz.score++;
+  var fb=(ok?"¡Correcto! ":"No exactamente. ")+"Se viola la heurística "+s.a+" ("+H[s.a-1].name+"). "+s.why;
+  quiz.i++;
+  if(quiz.i>=5){var f=quiz.score;quiz=null;return {text:fb+"\n\nResultado final: "+f+" de 5. "+(f>=4?"¡Muy bien!":"Repasa con «lista las 10 heurísticas»."),follow:DEFQ};}
+  return {text:fb+"\n\n"+askQ(),follow:NUMS};
+}
+function answer(raw){
+  var t=" "+norm(raw)+" ";
+  if(quiz)return grade(t);
+  if(/ ponme a prueba | pon a prueba | quiz | trivia | examen | practicar /.test(t)){
+    quiz={order:shuffle(S.map(function(_,i){return i;})).slice(0,5),i:0,score:0};
+    return {text:"Vamos con 5 casos. Te describo una interfaz y tú dices qué heurística se viola.\n\n"+askQ(),follow:NUMS};
+  }
+  if(/ (hola|buenas|hey|buenos dias|buenas tardes) /.test(t)&&t.length<25)return {text:"¡Hola! Soy un asistente sobre heurísticas de Nielsen y diseño de interfaces. Elige una sugerencia o describe un problema de una interfaz.",follow:DEFQ};
+  if(/ gracias /.test(t))return {text:"¡De nada! Si quieres, sigue con otra pregunta o ponte a prueba.",follow:DEFQ};
+  if(/ que puedes | que sabes | que mas puedo | menu | para que sirves | que puedo preguntar /.test(t))
+    return {text:"Puedo:\n• Explicar cada una de las 10 heurísticas, con ejemplos y cómo se violan.\n• Diagnosticar un problema que me describas y decirte qué heurística toca.\n• Explicar leyes y principios (Fitts, Hick, Jakob, Miller, Gestalt, accesibilidad).\n• Explicar cómo hacer una evaluación heurística.\n• Ponerte a prueba con casos.",follow:DEFQ};
+  if(/ (lista|listado|cuales son|resumen|todas|las 10|diez) /.test(t)&&/ (heuristica|heuristicas|nielsen) /.test(t)||t.trim()==="lista")
+    return {text:"Las 10 heurísticas de Nielsen:\n"+H.map(function(h){return h.n+". "+h.name;}).join("\n")+"\n\nPregunta por cualquiera, por ejemplo «heurística 3».",follow:["Explícame la heurística 1","Explícame la heurística 5","Ponme a prueba"]};
+  var mode=null;
+  if(/viol|incumpl|que no hacer|mal ejemplo|error comun/.test(t))mode="bad";
+  else if(/ejemplo/.test(t))mode="ex";
+  else if(/como (la |lo )?(aplic|cumpl|mejor|implement|logr)|consejo|recomend/.test(t))mode="how";
+  var nav=/siguiente|proxima|sigue /.test(t)?1:(/anterior|previa/.test(t)?-1:0);
+  if(nav&&last&&last.n){var nx=H[(last.n-1+nav+10)%10];return heur(nx,mode);}
+  var m=t.match(/heuristica\s*#?\s*(\d{1,2})|#\s*(\d{1,2})|numero\s*(\d{1,2})/);
+  if(m){var n=+(m[1]||m[2]||m[3]);if(n>=1&&n<=10)return heur(H[n-1],mode);}
+  var r=rank(t);
+  if(!r.length){
+    if(mode&&last&&last.n)return heur(last,mode);
+    return {text:"No encontré eso en mi base de conocimiento. Puedo hablar de las 10 heurísticas de Nielsen, leyes de diseño (Fitts, Hick, Jakob, Miller), Gestalt, accesibilidad y evaluación de usabilidad. También puedes describirme un problema de una interfaz, por ejemplo: «los usuarios no saben si su archivo se guardó».",follow:DEFQ};
+  }
+  var top=r[0];
+  if(top.it.n){
+    var defin=/explic|que es |define|hablame|cuentame|dime sobre/.test(t);
+    var symptom=!mode&&(top.b.length>top.a.length||(!defin&&t.trim().split(" ").length>=5));
+    if(symptom){
+      var picks=r.filter(function(x){return x.it.n&&x.sc>=2&&x.sc>=top.sc*0.6;}).slice(0,2);
+      var out="Analicé tu descripción y lo más probable es que se trate de:\n";
+      picks.forEach(function(p){
+        out+="\nHeurística "+p.it.n+": "+p.it.name+"\nPistas que detecté: "+p.b.concat(p.a).join(", ")+"\nPor qué: "+p.it.def+"\nCómo corregirlo: "+p.it.tip+"\n";
+      });
+      last=picks[0].it;
+      return {text:out.trim(),follow:hFollow(last)};
+    }
+    return heur(top.it,mode);
+  }
+  last=null;
+  return {text:top.it.txt,follow:[top.it.rel,"Lista las 10 heurísticas","Ponme a prueba"]};
+}
+
+/* ===== CONEXIÓN A N8N ===== */
+var WEBHOOK_URL = "https://jorgerww.app.n8n.cloud/webhook/c2592805-31da-4a6b-8e91-c4a63b9cec38";
+var sessionId = "sesion-" + Math.random().toString(36).slice(2);
+
+async function askN8N(text){
+  var res = await fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ chatInput: text, sessionId: sessionId })
+  });
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  var data = await res.json().catch(function(){ return null; });
+  if(!data) return "(respuesta vacía del servidor)";
+  if(typeof data === "string") return data;
+  if(Array.isArray(data)) data = data[0] || {};
+  return data.output || data.text || data.response || data.message || JSON.stringify(data);
+}
+
+/* ===== INTERFAZ ===== */
+var chat=document.getElementById("chat"),input=document.getElementById("input"),quick=document.getElementById("quick");
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+function setQuick(list){
+  quick.innerHTML="";
+  list.forEach(function(txt){var b=el("button","chip",txt);b.type="button";b.addEventListener("click",function(){ask(txt);});quick.appendChild(b);});
+  quick.hidden=false;
+}
+function welcome(){
+  last=null;quiz=null;chat.innerHTML="";quick.hidden=true;
+  var w=el("section","welcome");
+  w.appendChild(el("h2",null,"¿Qué quieres aprender hoy?"));
+  w.appendChild(el("p","sub","Elige una sugerencia o escribe lo tuyo. Sé de las heurísticas de Nielsen y de diseño de interfaces."));
+  var g=el("div","groups");
+  MENU.forEach(function(grp){
+    var box=el("div","group");box.appendChild(el("h3",null,grp.t));
+    var list=el("div","chips");
+    grp.i.forEach(function(txt){var b=el("button","chip",txt);b.type="button";b.addEventListener("click",function(){ask(txt);});list.appendChild(b);});
+    box.appendChild(list);g.appendChild(box);
+  });
+  w.appendChild(g);chat.appendChild(w);input.focus();
+}
+function addMsg(who,text){
+  var w=chat.querySelector(".welcome");if(w)w.remove();
+  var m=el("div","msg "+who);m.appendChild(el("div","bubble",text));
+  chat.appendChild(m);chat.scrollTop=chat.scrollHeight;return m;
+}
+var busy=false;
+async function ask(text){
+  text=text.trim();if(!text||busy)return;
+  busy=true;
+  addMsg("me",text);input.value="";
+  var t=addMsg("bot","Escribiendo…");
+  var bubble=t.querySelector(".bubble");
+  try{
+    var out=await askN8N(text);
+    bubble.textContent=out;
+  }catch(err){
+    var isCors = err instanceof TypeError;
+    bubble.textContent = isCors
+      ? "No se pudo conectar con n8n. Casi seguro es CORS: en el nodo Webhook, pestaña Settings, agrega «Allowed Origins (CORS)» = *  y vuelve a publicar el workflow."
+      : "El asistente respondió con un error: "+err.message+". Revisa en n8n la pestaña «Executions» para ver el detalle.";
+  }
+  setQuick(DEFQ);
+  busy=false;
+}
+document.getElementById("form").addEventListener("submit",function(){ask(input.value);});
+document.getElementById("helpBtn").addEventListener("click",function(){ask("¿Qué puedo preguntar?");});
+document.getElementById("resetBtn").addEventListener("click",welcome);
+welcome();
+</script>
+</body>
+</html>
